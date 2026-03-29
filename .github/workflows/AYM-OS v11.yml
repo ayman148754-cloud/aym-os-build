@@ -1,0 +1,33 @@
+name: Build AYM-OS v11
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mmdebstrap qemu-user-static binfmt-support arch-test debootstrap systemd-container
+
+      - name: Build System Root
+        run: |
+          # بناء نظام Debian كامل بمعمارية ARM64 في ثواني
+          sudo mmdebstrap --arch=arm64 \
+            --include=xfce4,xfwm4,xfce4-terminal,lightdm,python3,nmap,git,curl,sqlmap,network-manager \
+            bullseye ./aym-os-root.tar http://deb.debian.org/debian/
+
+      - name: Create ISO/Image
+        run: |
+          # تحويل النظام لملف واحد جاهز
+          # بما إننا نريد شي يشتغل، راح نرفعه كـ Tarball كامل تكدر تفرشه بالفلاش
+          echo "System built successfully"
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: AYM-OS-ROOT-TAR
+          path: aym-os-root.tar
