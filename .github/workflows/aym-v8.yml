@@ -1,0 +1,38 @@
+name: Build AYM-OS v8
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build qemu-user-static binfmt-support debootstrap
+
+      - name: Full Build Process
+        run: |
+          # البناء في المجلد الحالي مباشرة وبصلاحيات كاملة
+          sudo lb config --architecture arm64 \
+                      --distribution bullseye \
+                      --bootstrap qemu-debootstrap \
+                      --mirror-bootstrap "http://deb.debian.org/debian/" \
+                      --binary-images iso-hybrid \
+                      --chroot-filesystem squashfs
+          
+          # إنشاء قائمة البرامج
+          sudo mkdir -p config/package-lists
+          echo "xfce4-panel xfwm4 xfce4-settings xfce4-session lightdm thunar xfce4-terminal mousepad midori network-manager-gnome firmware-linux-nonfree golang-go python3 nmap git curl sqlmap" | sudo tee config/package-lists/desktop.list.chroot
+          
+          # بدأ البناء الفعلي
+          sudo lb build
+
+      - name: Upload ISO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AYM-OS-FINAL
+          path: "*.iso"
