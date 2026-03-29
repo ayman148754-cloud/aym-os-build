@@ -1,0 +1,33 @@
+name: Build AYM-OS v13
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build ISO via Docker
+        run: |
+          # استخدام Docker بوضع "الامتياز الكامل" لكسر أي قيد بالسيرفر
+          docker run --privileged --rm -v $(pwd):/build debian:bullseye bash -c "
+            apt-get update && \
+            apt-get install -y live-build debootstrap qemu-user-static binfmt-support && \
+            mkdir -p /build/aym-os && cd /build/aym-os && \
+            lb config --architecture arm64 \
+                      --distribution bullseye \
+                      --bootstrap qemu-debootstrap \
+                      --mirror-bootstrap 'http://deb.debian.org/debian/' \
+                      --binary-images iso-hybrid && \
+            mkdir -p config/package-lists && \
+            echo 'xfce4 python3 nmap git curl sqlmap xfce4-terminal mousepad lightdm thunar network-manager-gnome' > config/package-lists/desktop.list.chroot && \
+            lb build && \
+            mv *.iso /build/AYM-OS-FINAL.iso
+          "
+
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: AYM-OS-FINAL-ISO
+          path: AYM-OS-FINAL.iso
