@@ -1,0 +1,37 @@
+name: Build AYM-OS v10
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup ARM Build Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap qemu-user-static binfmt-support
+
+      - name: Construct System Root
+        run: |
+          # بناء نظام Debian Bullseye لمعمارية ARM64 في مجلد
+          sudo debootstrap --arch=arm64 --foreign bullseye ./aym-root http://deb.debian.org/debian/
+          sudo cp /usr/bin/qemu-aarch64-static ./aym-root/usr/bin/
+          
+          # تثبيت النظام (المرحلة الثانية)
+          sudo chroot ./aym-root /bin/bash -c "/debootstrap/debootstrap --second-stage"
+          
+          # إضافة أدواتك
+          sudo chroot ./aym-root /bin/bash -c "apt-get update && apt-get install -y xfce4 thunar python3 nmap git curl sqlmap --no-install-recommends"
+
+      - name: Compress System
+        run: |
+          # ضغط النظام في ملف واحد جاهز للفلاش
+          sudo tar -cvzf aym-os-arm64.tar.gz ./aym-root
+
+      - name: Upload System
+        uses: actions/upload-artifact@v4
+        with:
+          name: AYM-OS-ROOT
+          path: aym-os-arm64.tar.gz
