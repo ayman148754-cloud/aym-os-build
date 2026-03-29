@@ -1,0 +1,42 @@
+name: Build AYM-OS v6
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build qemu-user-static binfmt-support debootstrap
+
+      - name: Configure and Build
+        run: |
+          mkdir build && cd build
+          sudo lb config --architecture arm64 \
+                      --distribution bullseye \
+                      --bootstrap qemu-debootstrap \
+                      --mirror-bootstrap "http://deb.debian.org/debian/" \
+                      --binary-images iso-hybrid \
+                      --chroot-filesystem squashfs
+          
+          sudo mkdir -p config/package-lists
+          sudo bash -c 'cat <<EOF > config/package-lists/desktop.list.chroot
+          xfce4-panel xfwm4 xfce4-settings xfce4-session lightdm
+          thunar xfce4-terminal mousepad midori
+          network-manager-gnome firmware-linux-nonfree
+          golang-go python3 nmap git curl sqlmap
+          EOF'
+          
+          sudo lb build
+
+      - name: Search and Upload ISO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AYM-OS-ISO
+          # هنا السر: خليناه يدور في كل المجلدات على أي ملف ينتهي بـ .iso
+          path: "**/*.iso"
