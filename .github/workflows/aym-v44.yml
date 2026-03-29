@@ -1,0 +1,48 @@
+name: Build AYM-OS v5
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y live-build qemu-user-static binfmt-support debootstrap
+
+      - name: Configure ISO
+        run: |
+          mkdir build && cd build
+          # هنا السر: حددنا النسخة bullseye والمستودع الرسمي مباشرة
+          sudo lb config --architecture arm64 \
+                      --distribution bullseye \
+                      --bootstrap qemu-debootstrap \
+                      --mirror-bootstrap "http://deb.debian.org/debian/" \
+                      --binary-images iso-hybrid \
+                      --chroot-filesystem squashfs
+
+      - name: Create Package List
+        run: |
+          cd build
+          sudo mkdir -p config/package-lists
+          sudo bash -c 'cat <<EOF > config/package-lists/desktop.list.chroot
+          xfce4-panel xfwm4 xfce4-settings xfce4-session lightdm
+          thunar xfce4-terminal mousepad midori
+          network-manager-gnome firmware-linux-nonfree
+          golang-go python3 nmap git curl sqlmap
+          EOF'
+
+      - name: Build ISO
+        run: |
+          cd build
+          sudo lb build
+
+      - name: Upload ISO
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AYM-OS-ISO
+          path: build/*.iso
